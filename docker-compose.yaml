@@ -1,0 +1,96 @@
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_USER: gallery
+      MYSQL_PASSWORD: gallery123
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  eureka-server:
+    build: ./eureka-server
+    ports:
+      - "8761:8761"
+
+  config-server:
+    build: ./config-server
+    ports:
+      - "8888:8888"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    volumes:
+      - D:/Programiranje/faks/RZK/config-repo:/config-repo
+
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "8081:8081"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: on-failure:5
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+  catalog-service:
+    build: ./catalog-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: on-failure:5
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: on-failure:5
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+  exhibition-service:
+    build: ./exhibition-service
+    ports:
+      - "8084:8084"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    restart: on-failure:5
+    depends_on:
+      mysql:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "8765:8765"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    depends_on:
+      - eureka-server
+      - auth-service
+      - catalog-service
+      - order-service
+      - exhibition-service
+
